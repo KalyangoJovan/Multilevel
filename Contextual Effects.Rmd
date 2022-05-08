@@ -1,0 +1,124 @@
+---
+title: "Contextual Effects"
+author: "Kalyango Jovan"
+date: "25/02/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+*Library:*
+
+```{r, warning=FALSE, error=FALSE, include= TRUE, interval=FALSE}
+#MLM packages
+library(lme4)
+library(lmerTest)
+```
+
+## CONTEXTUAL ANALYSIS
+
+For contextual analysis, we are presented with the same dataset exam, the analysis is done from the perspective of contextual effect, the file exam.csv holds data from pupils in English Schools. The dependent variable
+is exam-scores, and the independent variables are reading ability (LRT, London Reading Test) and average
+reading ability in school (AvsLRT).
+
+```{r, echo=T}
+#load the data
+exam <- read.csv(file = "exam.csv", header = TRUE)
+head(exam)
+```
+
+## 1). Model 3: 
+The model that includes a random intercept, the predictors at level 1 (in this case,LRT - reading ability per student), and the predictors at level 2 (in this case, AvsLRT - the average reading ability in the school). Include the predictor LRT using grand mean centering.
+
+```{r}
+exam$lrt_gmc <- exam$LRTscore - mean(exam$LRTscore) #grand mean centering
+#model with fixed predictors for both levels
+model_3_gmc <- lmer(Examscore~1 + lrt_gmc + AvsLRT + (1|ï..School), REML = FALSE, data = exam)
+summary(model_3_gmc)
+
+```
+
+## a) What does the regression coefficient for LRT represent in terms of contextual effects? 
+
+The regression coefficient for LRT represents the **within school effect** of individual reading ability on the exam score.So with every point higher a student has on individual reading scores compared to her/his peers, the student scores 0.56 points higher on the exam score.
+
+## b) What does the regression coefficient for AvsLRT represent in terms of contextual effects?
+
+As the **individual level predictor** is added grand mean centered, the regression coefficient for AvsLRT represents the **difference between the within school effect** of individual reading ability on the exam score and the between school effect of average reading ability on the exam score. So on **top of the within effect** of the individual/student reading score on exam, if a stuent is within a school that on average scores 1 point higher on reading score, the student on average gains an added **0.36** points on the exam score.
+
+
+## 2) Calculate the predicted exam score for 2 children, child X and Y 
+
+•Child X has score -2, so he/she has a score below average
+
+• Child Y has score 2, so he/she has a score above average
+
+• School A has an average of -1, so the school is below average
+
+• School B has an average of 1, so the school is above average
+
+*What are the predicted exam scores for the two children under the two scenarios?*
+
+**estimated exam scores:** intercept + y10 * Childscore + y01 * Schoolaverage = estimate
+
+• child X on school A: 0.01 + 0.56 * -2.00 + 0.36 * -1.00 = -1.46
+
+• child X on school B: 0.01 + 0.56 * -2.00 + 0.36 * 1.00 = -0.75
+
+• child Y on school A: 0.01 + 0.56 * 2.00 + 0.36 * -1.00 = 0.77
+
+• child Y on school B: 0.01 + 0.56 * 2.00 + 0.36 * 1.00 = 1.49
+
+
+## The two students can belong  to any of the schools i.e.,  Two way to Four results
+
+X can go to A or B 
+```{r}
+X_Aestimate <- 0.01 + 0.56*-2 + 0.36*-1
+X_Bestimate <- 0.01 + 0.56*-2 + 0.36*1
+X_Aestimate
+X_Bestimate
+```
+
+Y can go to A or B 
+```{r}
+Y_Aestimate <- 0.01 + 0.56*2 + 0.36*-1
+Y_Bestimate <- 0.01 + 0.56*2 + 0.36*1
+Y_Aestimate
+Y_Bestimate
+```
+
+3. Again fit model 3 (the model that includes a random intercept, and the predictors at level 1 and 2),
+but this time include the predictor LRT using **cluster** mean centering (i.e., within cluster centering).
+
+```{r}
+exam$lrt_groupmean <- ave(exam$LRTscore, exam$ï..School)
+exam$lrt_wcc <- exam$LRTscore - exam$lrt_groupmean
+
+model_3_wcc <- lmer(Examscore~1 + lrt_wcc + AvsLRT + (1|ï..School), REML = FALSE, data = exam)
+summary(model_3_wcc)
+
+```
+
+## a) What does the regression coefficient for LRT represent in terms of contextual effects? Interpret this coefficient.
+
+The LRT regression coefficient represents the **within effects** of the model, i.e. the effect that the LRT
+reading score of an individual student has on their exam score. One point above the class average results in
+a higher predicted exam score. In this case, for every point a student scores higher on LRT, on average the
+predicted exam score of this student increases by 0.56 points.
+
+## b) What does the regression coefficient for AvsLRT represent in terms of contextual effects? Interpret this coefficient.
+
+The AvsLRT regression coefficient represents the **between effects** of the model, i.e. the effect that belonging to **different schools** has one the exam score of students. One point higher in average reading score results in a higher predicted (mean school) exam score. In this case, for every point a school scores higher on the AvsLRT, the predicted exam score of the average student in this class increases by 0.92 points.
+
+## 4. Does the within effect differ significantly from the between effect? Interpret
+
+Yes, the between effect is 0.358 points larger compared to the within effect, which is statistically significant, $t(63) = 3.250, p = 0.0018$. 
+
+
+
+
+
+

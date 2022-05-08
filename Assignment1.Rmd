@@ -1,0 +1,273 @@
+---
+title: "Group Assignment1-MLM"
+author: "Kalyango Jovan, Lale, Lina"
+date: "14/02/2022"
+output:
+  pdf_document: default
+  bibliography: reference.bib
+  html_document: default
+---
+
+
+```{r, include=FALSE}
+exam <- read.csv(file = "exam.csv")
+head(exam)
+
+```
+
+
+```{r, include=FALSE}
+# number of schools 
+length(unique(exam$ï..School))
+
+```
+
+
+```{r, include=FALSE}
+# number of students 
+length(unique(exam$Student))
+
+```
+
+
+```{r, include=FALSE}
+# number of exams taken in total
+length(unique(exam$Examscore))
+
+```
+
+## 1
+
+The multilevel analysis(modeling) is used statistical analysis of data have a hierarchical or clustered structure. Such data are educational, for instance students are nested within schools. It is worth highlighting that data within same cluster(e.g school) are more similar than data across different clusters hence, the independence assumption is violated, yet Standard statistical tests are not at all robust against violation of the
+independence assumption. But also,the degree of similarity is indicated by the intraclass correlation $\rho$. 
+
+Specifically, the data set we have at hand contains 198 students that are nested in 65 schools, London reading test(LRT) i.e the reading ability and exam score are separately measured per student, the two variables can identified as individual-level variables. The average reading score variable is an aggregated variable for students for every school, this school level variable( cluster). The different levels of data identified, leads to its hierarchical structure which implies multilevel regression analysis not the traditional regression analysis( multiple). 
+
+By ignoring the structure of the data and disaggregate the school-level(second-level) we can perform the conventional regression analysis, violates the independent assumption among observations. This is due to the fact that students from the same school are more likely to have similar scores than students from different schools, in other words they are dependent to each other, if the school they come from is the same. The problem of violating the assumption, is underestimation of the standard errors and this leads to inflated type I error rate. By not deploying multilevel analysis, may result in violation of other assumptions like linearity, presence of outlier and others. 
+
+On another hand, if we choose to aggregate the lower level(students) to second- level( school-level) will lead to a substantial decrease in the effective sample size hence lowering the statistical power[@hox2017multilevel]. So, performing, mulmtilevel analysis allows a proper assessment of effects of LRT-score on the outcome variable (Examscore) accross schools(clustrs), avarage score can be used to asses if partly affect the Examscore between schools.
+
+To sum up, the available information from the dataset, we theoretically think it is appropriate to use multilevel analysis in this case.  
+
+
+# 2
+## Discriptive Statistics 
+We can view some descriptive statistics with $summary()$. where the minimum and maximum are respectively the first and last values in the output below for each variable. Alternatively,we can compute them by using with the $min()$ and $max()$ functions. Also, the function $summary()$ gives other four quantities(mean, median, first and third quartiles). 
+```{r}
+summary(exam)
+
+```
+
+## Outlier checking
+
+Observations considered as potential outliers by the $IQR$ criterion are displayed as points in the boxplot.Based on this criterion, there are 17 potwential outliers( 2 above and 15 points below) the vertical line.
+```{r}
+#create boxplot that displays examscore distribution for each school in the dataset
+boxplot(Examscore~ï..School,
+data= exam,
+main="Exam Distribution per school",
+xlab="School",
+ylab="Examscore",
+col="steelblue",
+border="black"
+)
+```
+
+# 3 
+
+# a)
+Yes, because we use multilevel regression analysis to accommodate nested data and the dataset we are given is nested, the dataset is of hierarchical structure.
+
+# b)
+H0: $u_{0j}=0$  
+vs  
+HA: $u_{0j}>0$
+
+
+Or by means of diviance
+
+H0: Deviance of the null/baseline model is equal to the deviance of intercept model; $$Deviance_{m0} = Deviance_{m1}$$ 
+
+Vs
+
+H1: Deviance of the null/baseline model is larger than the deviance of intercept model; $$Deviance_{m0}> Deviance_{m1}$$
+
+# c) 
+
+# Level-1 equation 
+
+$$examscore_{ij}= b_{0j} + e_{ij}$$
+
+# Level-2 equation
+
+$$b_{0j}=\gamma_{00}+u_{0j}$$
+
+# Mixed Level equation
+
+$$examscore_{ij}=\gamma_{00}+u_{0j}+ e_{ij}$$
+where $_i$ represents individual(student) and $_j$ represents school
+
+
+# d) 
+```{r, include=FALSE}
+library(lmerTest)
+library(lme4)
+```
+
+# Model_0  and Model_1
+
+```{r, include=FALSE}
+model_0 <- lm(Examscore~ 1, data = exam)
+
+model_1 <- lmer(Examscore ~ 1 + (1|ï..School), REML = FALSE,
+     data = exam) 
+
+summary(model_0)
+summary(model_1) 
+anova(model_1, model_0)
+```
+The two models, model_0 that ignores the multilevel structure, this also known as fixed-intercept model, because it consists of an overall intercept and residual parts, thus the hierarchical structure is not considered in this model. 
+
+The second model, model_1 is a random intercept model, is fitted by adding variance component for the intercept at school level, that is to say the variance varies across schools(homogeneity is not achieved between schools). 
+
+By means of $ anova()$ function model_0 has $Deviance$= 11509  and $AIC$= 11513, whilst model_1 has $Deviance$= 11011(smaller)  and $AIC$= 11017(smaller), they suggest that a model_1 is a better model. Furthermore, the Chi-square difference test indicates that the later model(model_1) fits the data significantly better than model_0($${\chi}^2_{(1)}=498.72, p< 0.0001 $$), this implies that we reject the null hypothesis that the variance of the intercept between schools is zero.
+
+
+
+# e)  ICC
+
+```{r, include=FALSE}
+#summary(model_1) from line we get variaces of both residual and school, that we use to compute icc
+icc <- 0.1686/(0.1686+0.8478 )
+icc
+summ(model_1)## from the grouping variable 
+```
+The interclass correlation is 0.17( 17%), meaning that 17% of the variance is explained by second level( school level), in other words, if we choose more than one student from the same school, the expected correlation between their exam score is 0.17.
+
+# 4 
+
+# Model_2  and Model_3
+
+There are two predictors i.e LRT-score(student level) and average LRT-score( school-level) in the dataset that can influence the outcome variable(Examscore), to check this we fit two models squentially, model_2, this is known as a fixed effect model with fixed effect of the LRT-score at student level. 
+```{r, include=FALSE}
+model_2 <- lmer(Examscore ~LRTscore + (1|ï..School),
+             REML = FALSE, data = exam) 
+summary(model_2)
+summ(model_2)
+#anova(model_2, model_1)
+```
+
+The $Deviance_(4)=11010.6, p< 0.001$ and $ AIC= 9365.2$ chi square difference test($\chi^{2}_1=1653.4, p< 0.001$) and Wald test( $LRT-score_{coef} = 0.56, p<0.001$), confirm that there is a significant fixed effect of LRT-score of Examscore. Therefore, on average, a unit increase in the LRT-test leads to a 0.56 point increase in Examscore. The interclass correlation is $icc=0.14$, while for first level $Pseudo-R^{2} = 0.32$ for the fixed effect, meaning that between students within the same school variance in the Examscore 32% is explained by student's score at first level. For the second level $Pseudo-R^{2} = 0.42$, meaning 42% of the variance in Examscore is accross schools is explained by student scores(LRT score). 
+
+```{r, include=FALSE}
+library(jtools)
+summ(model_2)
+```
+
+The model_3 is one that we add fixed effect of average LRT-score on second level.
+```{r, include=FALSE}
+model_3 <- lmer(Examscore ~LRTscore + AvsLRT+ (1|ï..School),
+             REML = FALSE, data = exam) 
+summary(model_3)
+summ(model_3)
+#anova(model_2, model_3)
+```
+
+The $Deviance_(5)=9347.6, p< 0.01$ and $AIC= 9357.6$ chi square difference test($\chi^{2}_1=9.6227, p< 0.01$) and Wald test( $LRT-score_{coef} = 0.56, p<0.001$ and $AvsLRT_{coef}=0.36, p< 0.01$), confirm that there is a significant fixed effect of LRT-score of Examscore. Therefore, on average, a unit increase in the LRT-test leads to a 0.56 point increase in Examscore. The interclass correlation is $icc=0.12$, while for first level $Pseudo-R^{2} = 0.36$ for the fixed effect, meaning that between students within the same school variance in the Examscore 32% is explained by student's score at first level. For the second level $Pseudo-R^{2} = 0.44$, meaning 44% of the variance in Examscore is accross schools is explained by student scores(LRT score). 
+
+```{r, include=FALSE}
+library(jtools)
+summ(model_3)
+```
+
+# 5
+
+# a)
+H0: $u_{1j}=0$  
+vs  
+HA: $u_{1j}>0$
+
+# b)
+
+```{r, include=FALSE}
+model_4 <- lmer(Examscore ~ 1+ LRTscore +AvsLRT + (LRTscore|ï..School),
+             REML = FALSE, data = exam) 
+
+summary(model_4)
+#anova(model_4, model_3)
+summ(model_4)
+```
+By allowing the slope of LRT to vary between schools ($Deviance(7) = 9308.56, p< 0.001$) and $AIC = 9324.40$.A random effect model is fitted. The chi-square difference test confirm that the variance of the slope of LRT score between schools( clusters) is significant from zero ($\chi^{2}_2=37.191, p< 0.001$), this is not one or two sided, because we add variance of the slope between schools and covariance of the random intercept with random slope.
+
+# c)
+
+We conclude that the effect of LRT score on Examscores varies between schools.Therefore, we keep the random slope in the model.This means that the fixed effect of LRT-score that only gives a limited contribution of the effect of LRT-score.
+
+# 6
+
+# a)
+LRT-score confidence interval at $0.95$ 
+$$[0.51, 0.59]$$
+```{r, include=FALSE}
+confint(model_4)
+```
+
+# b) 
+
+```{r}
+pi <-c(0.552391-1.96*0.1220, 0.552391+1.96*0.1220)
+pi
+```
+
+
+LRT-score prediction interval at $0.95$
+$$[0.31, 0.79]$$
+
+# c)
+
+By repeating the study infinitely many times, the 95% of the constructed confidence
+intervals would contain the true slope of LRT-score. The predictive interval indicates that 95% of the regression coefficients of LRT-score predicted(for a new future) to lie in this interval. The difference between the two intervals is thus that the Predictive Interval refers to the distribution of the predicted slope coefficients within this particular model, whereas the Confidence Interval makes an assertion about a hypothetical sampling 
+distribution of the slopes in the population. It also worthy noting that the Predictive interval is expected to be wider than the confidence interval. 
+
+
+# 7
+
+To respond to this, we fit a full multilevel regression model( model_5), from the previous model(model_4) we include the cross-level interaction term between the predictors(LRT-score and average LRT-score). The $Deviance(8) = 9302.9, p< 0.01$ and $AIC = 9318.9$, there is no centering of predictors in this model, because the scale appear to include zero, hence, the main effects are still meaningful after adding the cross-level interaction, the LRT-score were centered before. 
+
+```{r, include=FALSE}
+model_5 <- lmer(Examscore ~ 1+ LRTscore +AvsLRT + LRTscore*AvsLRT +(LRTscore|ï..School),
+             REML = FALSE, data = exam) 
+
+summary(model_5)
+anova(model_5, model_4)
+summ(model_5)
+```
+
+The chi-square difference test between model_4 and model_5 ($\chi^{2}_1=7.52, p< 0.01$) confirms that LRT-score:ALRT cross-level interaction($b=0.16$). To sum up, the average reading score explain part of the differences in the relationship between reading score and Examscore in different schools. Thus, the higher the average reading, the stronger the positive relationship between the reading score and Examscore on average. The Psuedo $R^2=0.36$ of fixed effects indicates that 36% of variance in the effect of reading on the Examscore between schools is explained by the schools' average reading scores. 
+
+
+# 8
+
+We chose model_5 as the final model. This is because it only includes significant parameters and has the best model fit (Deviance(8) = 9302.9). Furthermore, model_5 has the lowest AIC (9318.9).Hence, the most appropriate model to fit the dataset.
+
+# Level-1 equation 
+$$examscore_{ij}= b_{0j}+b_{1j}*LRTscore_{j} + e_{ij}$$
+
+# Level-2 equation 
+$$b_{0j}=\gamma_{00}+\gamma_{01}*AvsLRT_{j} + u_{0j}$$
+$$b_{1j}=\gamma_{10}+\gamma_{11}*AvsLRT_{j} + u_{1j}$$
+
+
+# Mixed Level equation
+
+$$examscore_{ij}=\gamma_{00}+ \gamma_{01}*AvsLRT_{j}  + \gamma_{10}*LRTscore_{j} + \gamma_{11}*LRTscore_{j}*AvsLRT_{j}+u_{1j}*LRTscore_{j} + u_{0j} + e_{ij}$$
+where $_i$ represents individual(student) and $_j$ represents school
+
+
+# 9
+
+
+
+
+
+

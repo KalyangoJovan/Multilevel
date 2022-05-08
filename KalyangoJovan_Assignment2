@@ -1,0 +1,282 @@
+---
+title: "R Notebook"
+authors: "Jovan Kalyango"
+output: html_notebook
+---
+
+
+# Assignment 2: Longitudinal and contextual multilevel analysis
+## MSBBSS - Multilevel analysis
+
+```{r, necessary_packages}
+
+library(lme4)
+library(foreign)
+library(jtools)
+library(lmerTest)
+library(tidyverse)
+
+```
+
+```{r, loading_data}
+
+dat <- read.spss("curran_wide.sav", use.value.labels = F, to.data.frame = T)
+
+head(dat)
+
+```
+
+
+### Question 1. Convert the data into long format. Check the data and recode if necessary. 
+a. Check the linearity assumption, report and include plots.
+b. Check for outliers (don't perform analysis, just look in the scatterplots), report. 
+
+```{r, to_long_format}
+
+dat_longformat <- pivot_longer(data = dat, cols = c('anti1':'read4'),
+                         names_to = c(".value", "time"),
+                         names_pattern = "(anti|read)(.)")
+  
+head(dat_longformat)
+
+dat_long <- dat_longformat %>% 
+  select(id, momage:homecog, time:read)
+
+head(dat_long)
+
+```
+
+```{r, centering_variables}
+
+# Dependent variable 'anti' already includes a meaningful zero point, so does not have to be recoded. 
+
+# Centering time so that it includes a meaningful zero point
+dat_long$time <- as.numeric(dat_long$time) - 1
+
+# Grand mean centering 'read' 
+dat_long$readGMC <- dat_long$read - mean(dat_long$read)
+
+# Grand mean centering 'homecog'
+dat_long$homecogGMC <- dat_long$homecog - mean(dat_long$homecog)
+
+# Grand mean centering 'momage' 
+dat_long$momageGMC <- dat_long$momage - mean(dat_long$momage)
+
+```
+
+
+```{r, checking_linearity}
+
+# Scatterplot to check for linearity and outliers for variable 'time'
+ggplot(dat_long,
+aes(x = time, y = anti)) +
+geom_point() + geom_smooth(method = "lm",
+aes(color = "linear"),
+se = FALSE) + geom_smooth(method = "lm",
+formula = y ~ x + I(x^2), aes(color = "quadratic"), se = FALSE)
+
+# Scatterplot to check for linearity and outliers for variable 'read'
+ggplot(dat_long,
+aes(x = readGMC, y = anti)) +
+geom_point() + geom_smooth(method = "lm",
+aes(color = "linear"),
+se = FALSE) + geom_smooth(method = "lm",
+formula = y ~ x + I(x^2), aes(color = "quadratic"), se = FALSE)
+
+# Scatterplot to check for linearity and outliers for variable 'momage'
+ggplot(dat_long,
+aes(x = homecogGMC, y = anti)) +
+geom_point() + geom_smooth(method = "lm",
+aes(color = "linear"),
+se = FALSE) + geom_smooth(method = "lm",
+formula = y ~ x + I(x^2), aes(color = "quadratic"), se = FALSE)
+
+# Scatterplot to check for linearity and outliers for variable 'momage'
+ggplot(dat_long,
+aes(x = momageGMC, y = anti)) +
+geom_point() + geom_smooth(method = "lm",
+aes(color = "linear"),
+se = FALSE) + geom_smooth(method = "lm",
+formula = y ~ x + I(x^2), aes(color = "quadratic"), se = FALSE)
+
+```
+
+
+### Question 2. Answer the question: Should we do a multilevel analysis?
+a. What is the mixed model equation?
+b. Provide and interpret the relevant results (don’t just copy the output, report
+the relevant results in APS style).
+c. What is the intraclass correlation?
+d. What is your conclusion regarding the overall questio nregarding the necessity
+of performing a multilevel analysis?
+
+```{r, model0_regular_model}
+
+model0 <- lm(anti ~ 1, data  = dat_long)
+
+summary(model0)
+
+```
+
+```{r, random_intercept}
+
+model1 <- lmer(anti ~ 1 + (1|id), REML = F, data = dat_long)
+
+summary(model1) 
+summ(model1) 
+
+anova(model1, model0) 
+
+```
+
+
+### Question 3. Add the time-varying predictor(s). Provide and interpret the relevant results, and provide your overall conclusion. 
+
+```{r, time_included}
+
+# The time-varying predictors in our model are time and reading score. First, we make a baseline model for time in order to have a baseline model to calculate explained variance. 
+
+model2 <- lmer(anti ~ 1 + time + (1|id), REML = F, data = dat_long)
+
+summary(model2)
+summ(model2)
+
+anova(model2, model1)
+
+```
+
+```{r, reading_score_included}
+
+# Then, when we have a baseline model for calculating the explained variance, we can add the other time-varying predictor, namely the reading score. 
+
+model3 <- lmer(anti ~ 1 + time + readGMC + (1|id), REML = F, data = dat_long)
+
+summary(model3)
+summ(model3)
+
+anova(model3, model2)
+
+# Reading score is not significant and will not be used in succeeding models as a predictor. 
+
+```
+
+
+### Question 4. On which level or levels can you expect explained variance? Calculate and interpret the explained variances.
+
+```{r, explained_variances}
+
+# Explained variance at level 1 (occasion)
+(1.689 - 1.693) / 1.689
+
+# Explained variance at level 2 (subject)
+(1.592 - 1.576) / 1.592
+
+```
+
+
+### Question 5. Add the time invariant predictor(s) to the model. Provide and interpret the relevant results, and provide your overall  conclusion. 
+
+```{r, time_invariant_predictors}
+
+model4  <- lmer(anti ~ 1 + time + homecogGMC + momageGMC + (1|id), REML = F, data = dat_long)
+
+summary(model4)
+summ(model4)
+
+# Momage is not significant and will be removed from the model. Model 4.1 is same model as model 4, but then without predictor momage. Model 4.1 will be used to compare other models with. 
+
+
+model4.1 <- lmer(anti ~ 1 + time + homecogGMC + (1|id), REML = F, data = dat_long)
+
+summary(model4.1)
+summ(model4.1)
+
+anova(model4.1, model2)
+
+```
+
+
+### Question 6. On which level or levels can you expect explained variance? Calculate and interpret the explained variances. 
+
+```{r, explained_variances_2}
+
+# Explained variance level 2 (subject level)
+(1.592 - 1.488) / 1.592
+
+```
+
+
+### Question 7. For the time-varying predictor(s), check if the slope is fixed or random. 
+a. What are the null and alternative hypotheses?
+b. Provide and interpret relevant results.
+c. Provide an overall conclusion. 
+
+```{r, random_slope_time}
+
+model5  <- lmer(anti ~ 1 + time + homecogGMC + (time|id), REML = F, data = dat_long)
+
+summary(model5)
+
+vc_model5 <- VarCorr(model5)
+as.data.frame(vc_model5, order = "lower.tri")
+
+anova(model5, model4.1) # Compare with model 4.1, model 4 includes non-significant momage. 
+
+
+```
+
+```{r, random_slope_read}
+
+
+
+model6  <- lmer(anti ~ 1 + time + homecogGMC + (time + readGMC|id), REML = F, data = dat_long)
+
+summary(model6)
+
+vc_model6 <- VarCorr(model6)
+as.data.frame(vc_model6, order = "lower.tri")
+
+anova(model6, model5)
+
+# Random slopes for read does not significantly improve model fit. This model will be dismissed. 
+
+```
+
+
+### Question 8. If there is a random slope, set up a model that predicts the slope variation. Provide and interpret relevant results, and provide an overall conclusion. 
+
+```{r, random_slope_model_time_homecog}
+
+# Cross-level interaction for homecog
+model7  <- lmer(anti ~ 1 + time + homecogGMC + time*homecogGMC + (time|id), REML = F, data = dat_long)
+
+summary(model7)
+
+vc_model7 <- VarCorr(model7)
+as.data.frame(vc_model7, order = "lower.tri")
+
+anova(model7, model5) # Compare with model 5, because model 6 was not significant. 
+
+```
+
+```{r, random_slope_model_time_momage}
+
+model8  <- lmer(anti ~ 1 + time + homecogGMC + time*homecogGMC + time*momageGMC + (time|id), REML = F, data = dat_long)
+
+summary(model8)
+
+anova(model8, model7)
+
+# Not significant. 
+
+```
+
+
+
+
+
+
+
+
+
+

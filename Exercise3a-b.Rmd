@@ -1,0 +1,79 @@
+---
+title: "Categorical MLM"
+author: "Kalyango Jovan"
+date: "11/03/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Exercise 3a 
+
+Loading data 
+```{r}
+library(readr)
+UTHAI2 <- read_csv("UTHAI2.csv")
+View(UTHAI2)
+```
+
+```{r}
+M0 <- glm(rep1 ~ 1, data = UTHAI2, family = "binomial")
+summary(M0)
+
+## Intercept-only model with random intercept 
+M1 <- glmer(rep1 ~ 1 + (1 | schoolid), data = UTHAI2, family = 'binomial', nAGQ = 10)
+summary(M1)
+#summ(M1, exp = T) No odds ratio
+
+## Add level 1 predictors to the model
+M2 <- glmer(rep1 ~ 1 + male + pped + (1 | schoolid) , data = UTHAI2, family = 'binomial', nAGQ = 10)
+summary(M2)
+summ(M2, exp = T)
+
+screenreg(list(M0, M1, M2))
+```
+
+
+```{r}
+## Variance linear predictor
+linear_pred <- -2.23668 + 0.53617* UTHAI2$male -0.64204 *UTHAI2$pped
+varLP <- var(linear_pred)
+varLP
+
+```
+
+## Predictors of level 2 added
+
+```{r}
+M3 <- glmer(rep1 ~ 1 + male + pped + msesc + (1 | schoolid) , data = UTHAI2, family = 'binomial', nAGQ = 10)
+summary(M3)
+summ(M3, exp = T)
+
+screenreg(list(M0, M1, M2, M3))
+
+
+## Variance linear predictor
+linear_pred <- -2.24164 + 0.53525* UTHAI2$male  -0.62708*UTHAI2$pped -0.29565* UTHAI2$msesc
+varLP <- var(linear_pred)
+varLP
+
+
+
+
+```
+
+
+## Random slope- male 
+
+```{r}
+M4 <- glmer(rep1 ~ 1 + male + pped + (male | schoolid) , data = UTHAI2, family = 'binomial', nAGQ = 1)
+summary(M4)
+summ(M4, exp = T)
+
+screenreg(list(M0, M1, M2, M3, M4))
+
+```
+
